@@ -6,12 +6,12 @@ import sys
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtGui import QIcon, QColor
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QDialog, QMainWindow, QDesktopWidget
-sys.path.append(os.path.dirname(__file__)) 
+from PyQt5.QtWidgets import QApplication, QWidget, QDialog, QMainWindow, QDesktopWidget, QSizePolicy
+sys.path.append(os.path.dirname(__file__))
 try:
     from . import mainwindow
 except (ImportError, SystemError):
-    try: 
+    try:
         import mainwindow
     except ModuleNotFoundError:
         pass
@@ -49,6 +49,31 @@ class LensRater(QMainWindow, mainwindow.Ui_MainWindow):
         self.next_button.clicked.connect(self.nextImage)
         self.prev_button.clicked.connect(self.prevImage)
 
+        #erik's modifications
+        bsizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        self.next_button.setSizePolicy(bsizePolicy)
+        self.prev_button.setSizePolicy(bsizePolicy)
+
+        self.radio_0.deleteLater()
+        self.radio_1.deleteLater()
+        self.radio_2.deleteLater()
+        self.radio_3.deleteLater()
+
+        self.btn_grp = QtWidgets.QButtonGroup()
+        self.btn_grp.setExclusive(True)
+        cats_reorder = list(self.categories)
+        cats_reorder.append(cats_reorder.pop(cats_reorder.index('')))  # send the "not" case to the end
+        for cat in cats_reorder:
+            if cat == '':
+                cat = 'Not'
+            btn = QtWidgets.QPushButton(self.centralwidget)
+            setattr(self, cat.lower() + '_button', btn)
+            btn.setSizePolicy(bsizePolicy)
+            btn.setText('\n\n'+cat+'\n\n')
+            self.horizontalLayout.addWidget(btn)
+            self.btn_grp.addButton(btn)
+        self.btn_grp.buttonClicked.connect(self.on_score_click)
+
         self.image_dir = image_dir
         self.image_files = sorted(find_files(image_dir, match=".png"))
         if len(self.image_files) == 0:
@@ -62,11 +87,11 @@ class LensRater(QMainWindow, mainwindow.Ui_MainWindow):
         self.setChildrenFocusPolicy(QtCore.Qt.NoFocus)
         QtWidgets.qApp.installEventFilter(self)
 
-        self.radios = [self.radio_0, self.radio_1, self.radio_2, self.radio_3]
-        for i in range(4):
-            self.radios[i].toggled.connect(self.radio_score)
-            # self.radios[i].setFocusPolicy(QtCore.Qt.NoFocus)
-    
+        # self.radios = [self.radio_0, self.radio_1, self.radio_2, self.radio_3]
+        # for i in range(4):
+        #     self.radios[i].toggled.connect(self.radio_score)
+        #     # self.radios[i].setFocusPolicy(QtCore.Qt.NoFocus)
+
         self.set_username_button.clicked.connect(self.update_username)
         self.username_edit.returnPressed.connect(self.set_username)
         self.jump_box.returnPressed.connect(self.jumped_to)
@@ -168,14 +193,14 @@ class LensRater(QMainWindow, mainwindow.Ui_MainWindow):
         self.progress_bar.setValue(index + 1)
         current_score = self.scores[self.current_image]
         self.set_colour_code(LensRater.colour_codes[current_score])
-        self.toggle_radio(current_score)
+        #self.toggle_radio(current_score)
 
         if current_score < 0:  # Implicitly score when seen
             self.score_image(0)
 
-    def toggle_radio(self, score):
-        for i in range(4):
-            self.radios[i].setChecked(i == score)
+    # def toggle_radio(self, score):
+    #     for i in range(4):
+    #         self.radios[i].setChecked(i == score)
 
     def resizeEvent(self, event):
         self.goto_image(self.image_index)
@@ -201,17 +226,28 @@ class LensRater(QMainWindow, mainwindow.Ui_MainWindow):
             if self.scores[f] < 0:
                 self.goto_image(i)
                 break
-            
-    def radio_score(self):
-        for i in range(4):
-            if self.radios[i].isChecked():
+
+    # def radio_score(self):
+    #     for i in range(4):
+    #         if self.radios[i].isChecked():
+    #             self.score_image(i)
+    #             break
+
+    def on_score_click(self, btn):
+        score_text = btn.text().strip()
+        if score_text == 'Not':
+            score_text = ''
+        for i, c in enumerate(self.categories):
+            if score_text == c:
                 self.score_image(i)
                 break
+        else:
+            raise ValueError(f'Invalid button label!!: {score_text}')
 
     def score_image(self, score):
         self.scores[self.current_image] = score
         self.set_colour_code(LensRater.colour_codes[score])
-        self.toggle_radio(score)
+        #self.toggle_radio(score)
         self.colour_label.setText(LensRater.categories[score])
 
     def load(self):
